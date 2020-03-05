@@ -3,6 +3,15 @@ uuid = "7ea187bb-140a-41e8-a18c-12614bc9f53b"
 authors = ["Val Lyashov", "Envato"]
 version = "0.1.0"
 
+[deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JSON2 = "2535ab7d-5cd8-5a07-80ac-9b1792aadce3"
+Lazy = "50d2b5c4-7a5e-59d5-8109-a42b560f39c0"
+MbedTLS = "739be429-bea8-5141-9913-cc70e7f3736d"
+
 [compat]
 julia = "1.3"
 

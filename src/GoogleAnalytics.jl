@@ -1,7 +1,9 @@
 module GoogleAnalytics
 
-using("utils/authentication.jl")
+using Dates, Base64, Lazy
 
-greet() = print("Tis me, a library.")
+include("utils/authentication.jl")
+
+export authenticate
 
 end # module
