@@ -1,5 +1,7 @@
 module GoogleAnalytics
 
-greet() = print("Hello World!")
+using("utils/authentication.jl")
+
+greet() = print("Tis me, a library.")
 
 end # module
