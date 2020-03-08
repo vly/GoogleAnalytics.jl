@@ -61,6 +61,18 @@ function base64_clean(base64_string::String)
     end
 end
 
+
+struct mystruct
+  ...
+end
+StructTypes.StructType(::Type{mystruct}) = StructTypes.Struct()
+
+open("myfile.json", "r") do f
+    JSON3.read(f, mystruct)
+end
+
+StructTypes.StructType(::Type{Servicekey}) = StructTypes.Struct()
+
 function JWTAuth(servicekey::Servicekey; iat = now(Dates.UTC), exp_mins = 1)
     algo = @as algo Dict("alg"=>"RS256", "typ"=>"JWT") begin
         JSON.json(algo)
