@@ -1,10 +1,18 @@
 # handles google authentication
+
+# temp loads while testing
+using JSON3
+using HTTP
+using JSON
+using Base64
 import Base: show
+import MbedTLS
+using Dates
+using Sockets
+using Lazy
 
 const api_scope = "https://www.googleapis.com/auth/analytics.readonly"
-const key_file = ''
-const api_endpoint = HTTP.URI("https://analyticsreporting.googleapis.com/v4/reports:batchGet")
-const oauth2_endpoint = HTTP.URI("https://oauth2.googleapis.com/token")
+const api_endpoint = "https://analyticsreporting.googleapis.com/v4/reports:batchGet"
 
 struct Servicekey
     type::String
@@ -19,6 +27,8 @@ struct Servicekey
     client_x509_cert_url::String
 end
 
+StructTypes.StructType(::Type{Servicekey}) = StructTypes.Struct()
+
 mutable struct Credentials
     access_token::String
     refresh_token::String
@@ -31,9 +41,8 @@ function refresh_access_token(creds::Credentials) end
 
 # service key functions
 function load_keyfile(file_location::AbstractString)
-    @as keyfile JSON.parsefile(file_location) begin
-        JSON2.write(keyfile)
-        JSON2.read(keyfile, Servicekey)
+    open(file_location, "r") do f
+        JSON3.read(f, Servicekey)
     end
 end
 
@@ -52,71 +61,131 @@ function Base.show(io::IO, key::Servicekey)
     print(io, "client_x509_cert_url:\t", key.client_x509_cert_url, "\n")
 end
 
-# jwt stuff
-function base64_clean(base64_string::String)
-    @as value base64_string begin
-        replace(value, "=" => "")
-        replace(value, '+' => '-')
-        replace(value, '/' => '_')
-    end
+# ------------------ Shamelessly lifted from GitHub.jl (thanks for saving my sanity!)
+const ENTROPY = Ref{MbedTLS.Entropy}()
+const RNG     = Ref{MbedTLS.CtrDrbg}()
+
+
+ENTROPY[] = MbedTLS.Entropy()
+RNG[]     = MbedTLS.CtrDrbg()
+MbedTLS.seed!(RNG[], ENTROPY[])
+
+
+#######################
+# Authorization Types #
+#######################
+
+abstract type Authorization end
+
+# TODO: SecureString on 0.7
+struct OAuth2 <: Authorization
+    token::String
 end
 
-
-struct mystruct
-  ...
-end
-StructTypes.StructType(::Type{mystruct}) = StructTypes.Struct()
-
-open("myfile.json", "r") do f
-    JSON3.read(f, mystruct)
+struct UsernamePassAuth <: Authorization
+    username::String
+    password::String
 end
 
-StructTypes.StructType(::Type{Servicekey}) = StructTypes.Struct()
+struct AnonymousAuth <: Authorization end
 
-function JWTAuth(servicekey::Servicekey; iat = now(Dates.UTC), exp_mins = 1)
-    algo = @as algo Dict("alg"=>"RS256", "typ"=>"JWT") begin
-        JSON.json(algo)
-        base64encode(algo)
-        base64_clean(algo)
-    end
+struct JWTAuth <: Authorization
+    JWT::String
+end
 
-    data = @as key servicekey begin
-        Dict("iss"      => key.client_email,
-             "scope"    => api_scope,
-             "aud"      => key.token_uri,
-             "exp"      => trunc(Int64, Dates.datetime2unix(iat+Dates.Minute(1))),
-             "iat"      => trunc(Int64, Dates.datetime2unix(iat)))
-        JSON.json(key)
-        base64encode(key)
-        base64_clean(key)
-    end
+####################
+# JWT Construction #
+####################
 
-    key_string = read(open(joinpath(@__DIR__, "test.pem"), "r"))
-    key = MbedTLS.PKContext()
-    MbedTLS.parse_key!(key, key_string)
+function base64_to_base64url(string)
+    replace(replace(replace(string, "=" => ""), '+' => '-'), '/' => '_')
+end
 
-    signature = @as key key begin
-        MbedTLS.sign(key,
-            MbedTLS.MD_SHA256,
-            MbedTLS.digest(MbedTLS.MD_SHA256, string(algo, '.', data)),
-            RNG[])
-        base64encode(key)
-        base64_clean(key)
-    end
+function JWTAuth(app_id::Int, key::MbedTLS.PKContext; servicekey::Servicekey, iat = now(Dates.UTC), exp_mins = 1)
+    algo = base64_to_base64url(base64encode(JSON.json(Dict(
+        "alg" => "RS256",
+        "typ" => "JWT"
+    ))))
+    data = base64_to_base64url(base64encode(JSON.json(Dict(
+        "iss"      => servicekey.client_email,
+        "scope"    => "https://www.googleapis.com/auth/analytics.readonly",
+        "aud"      => servicekey.token_uri,
+        "exp" => trunc(Int64, Dates.datetime2unix(iat+Dates.Minute(exp_mins))),
+        "iat" => trunc(Int64, Dates.datetime2unix(iat))
 
-    # signature =
-
-
-    string(algo, '.', data, '.', signature)
+    ))))
+    signature = base64_to_base64url(base64encode(MbedTLS.sign(key, MbedTLS.MD_SHA256,
+        MbedTLS.digest(MbedTLS.MD_SHA256, string(algo,'.',data)), RNG[])))
+    JWTAuth(string(algo,'.',data,'.',signature))
 end
 
 function JWTAuth(app_id::Int, privkey::String; kwargs...)
     JWTAuth(app_id, MbedTLS.parse_keyfile(privkey); kwargs...)
 end
 
-function meh()
-    HTTP.post(oauth2_endpoint, redirects = true)
 
-    MbedTLS.parse_key!(MbedTLS.PKContext(),
-        z.auth_provider_x509_cert_url,
-        String)
+#########################
+# Header Authentication #
+#########################
+
+authenticate_headers!(headers, auth::AnonymousAuth) = headers
+
+function authenticate_headers!(headers, auth::OAuth2)
+    headers["Authorization"] = "token $(auth.token)"
+    return headers
+end
+
+function authenticate_headers!(headers, auth::JWTAuth)
+    headers["Authorization"] = "Bearer $(auth.JWT)"
+    return headers
+end
+
+function authenticate_headers!(headers, auth::UsernamePassAuth)
+    headers["Authorization"] = "Basic $(base64encode(string(auth.username, ':', auth.password)))"
+    return headers
+end
+
+###################
+# Pretty Printing #
+###################
+
+function Base.show(io::IO, a::OAuth2)
+    token_str = a.token[1:6] * repeat("*", length(a.token) - 6)
+    print(io, "GitHub.OAuth2($token_str)")
+end
+
+
+token_endpoint = "https://oauth2.googleapis.com/token"
+grant = HTTP.escapeuri("urn:ietf:params:oauth:grant-type:jwt-bearer")
+auth = JWTAuth(0, "examples/test.pem"; servicekey = servicekey).JWT
+# payload = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=$auth"
+payload = Dict(
+    "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    "assertion" => auth
+)
+raw_response = HTTP.request("POST", token_endpoint, ["Content-Type" => "application/json"], JSON.json(payload))
+response = String(raw_response.body)
+access_token_blob = JSON.parse(response)
+
+# test request
+access_token = access_token_blob["access_token"]
+token_type = access_token_blob["token_type"]
+payload = Dict(
+        "reportRequests" => [Dict(
+            "viewId"        => "43047246",
+            "dateRanges"    => [Dict(
+                                    "startDate" => "7daysAgo",
+                                    "endDate" => "today"),],
+          "metrics"         => [Dict("expression" => "ga:sessions"),],
+          "dimensions" => [Dict("name" => "ga:country"),]
+        ),]
+      )
+
+batchGet_endpoint = "https://analyticsreporting.googleapis.com/v4/reports:batchGet"
+raw_response = HTTP.request("POST",
+    batchGet_endpoint,
+    ["Authorization" => "$token_type $access_token"],
+    JSON.json(payload)
+)
+response = String(raw_response.body)
+JSON.parse(response)
