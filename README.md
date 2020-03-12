@@ -17,6 +17,8 @@ Automatically handles data sampling by splitting requested date ranges.
 
 ## References
 
+* API documentation: [Reporting API v4](https://developers.google.com/analytics/devguides/reporting/core/v4/rest/v4/reports/batchGet)
+
 ## Acknowledgements
 
 * JWT authentication mechanism largely lifted from [GitHub.jl](https://github.com/JuliaWeb/GitHub.jl): thank you for saving my sanity.

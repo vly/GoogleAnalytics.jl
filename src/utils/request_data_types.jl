@@ -2,25 +2,25 @@
 
 # report request
 struct Request
-    reportRequests::Array{ReportRequest}
-    useResourceQuotas::Bool
+    report_requests::Vector{ReportRequest}
+    use_resource_quotas::Bool
 end
 
 struct ReportRequest
     viewid::AbstractString
     dateranges::DateRange
     sampling_level::SamplingLevel
-    dimensions::Array{Dimension}
+    dimensions::Vector{Dimension}
     dimension_filters::DimensionFilter
-    metrics::Array{Metric}
+    metrics::Vector{Metric}
     metric_filters::MetricFilter
     filter::AbstractString
-    orderBy::OrderBy
+    order_by::OrderBy
     segments::Segment
     pivots::Pivot
-    cohortGroup::CohortGroup
-    pageToken::AbstractString
-    pageSize::Integer
+    cohort_group::CohortGroup
+    page_token::AbstractString
+    page_size::Integer
     include_null_rows::Bool
     hide_totals::Bool
     hide_value_ranges::Bool
@@ -51,7 +51,7 @@ end
 # general dimension struct
 struct Dimension
     name::AbstractString
-    histogram_buckets::Array{Int64}
+    histogram_buckets::Vector{Int64}
 end
 
 @enum DimensionOperator begin
@@ -65,14 +65,14 @@ struct DimensionFilter
     dimension_name::AbstractString
     not::Bool
     operator::GeneralOperator
-    expressions::Array{AbstractString}
+    expressions::Vector{AbstractString}
     case_sensitive::Bool
 end
 
 
 struct DimensionFilter
     operator::DimensionOperator
-    filters::Array{DimensionFilter}
+    filters::Vector{DimensionFilter}
 end
 
 # Metrics related
@@ -97,40 +97,68 @@ end
 struct Metric
     expression::AbstractString
     alias::AbstractString
-    formattingType::MetricType
+    formatting_type::MetricType
 end
 
-struct MetricFilter end
+struct MetricFilter
+    metric_name::AbstractString
+    not::Bool
+    operator::MetricOperator
+end
 
 @enum OrderType begin
-
+    ORDER_TYPE_UNSPECIFIED
+    VALUE
+    DELTA
+    SMART
+    HISTOGRAM_BUCKET
+    DIMENSION_AS_INTEGER
 end
 
-struct OrderBy end
+struct OrderBy
+    field_name::AbstractString
+    order_type::OrderType
+    sort_order::SortOrder
+end
 
 @enum SortOrder begin
 end
 
 struct Segment end
+
 struct DynamicSegment end
+
 struct SegmentDefinition end
+
 struct SegmentFilter end
+
 struct SimpleSegment end
+
 struct SequenceSegment end
+
 struct OrFiltersForSegment end
+
 struct SegmentFilterClause end
+
 struct SegmentDimensionFilter end
+
 struct SegmentMetricFilterClause end
+
 struct SegmentSequenceStep end
+
 @enum Scope begin
 end
+
 @enum MatchType begin
 end
+
 struct Pivot end
 
 
 # cohorts
 struct CohortGroup end
+
 struct Cohort end
+
 @enum CohortType begin
 end

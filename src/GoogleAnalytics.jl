@@ -1,14 +1,24 @@
 module GoogleAnalytics
 
+# for interaction with API endpoints
+using JSON
 using JSON3
 using HTTP
-using JSON
-using Base64
-import Base: show
 import MbedTLS
-using Dates
+using Base64
 using Sockets
+
+# core
+import Base: show
+using Dates
 using Lazy
+
+# for data processing
+using JuliaDB
+
+# for data storage
+using CSVFiles
+
 
 include("utils/authentication.jl")
 
