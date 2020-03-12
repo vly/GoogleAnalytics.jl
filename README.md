@@ -16,3 +16,7 @@ Automatically handles data sampling by splitting requested date ranges.
 ## Example
 
 ## References
+
+## Acknowledgements
+
+* JWT authentication mechanism largely lifted from [GitHub.jl](https://github.com/JuliaWeb/GitHub.jl): thank you for saving my sanity.
