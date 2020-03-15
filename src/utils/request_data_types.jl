@@ -1,30 +1,6 @@
 # API requests data structures
 
 # report request
-struct Request
-    report_requests::Vector{ReportRequest}
-    use_resource_quotas::Bool
-end
-
-struct ReportRequest
-    viewid::AbstractString
-    dateranges::DateRange
-    sampling_level::SamplingLevel
-    dimensions::Vector{Dimension}
-    dimension_filters::DimensionFilter
-    metrics::Vector{Metric}
-    metric_filters::MetricFilter
-    filter::AbstractString
-    order_by::OrderBy
-    segments::Segment
-    pivots::Pivot
-    cohort_group::CohortGroup
-    page_token::AbstractString
-    page_size::Integer
-    include_null_rows::Bool
-    hide_totals::Bool
-    hide_value_ranges::Bool
-end
 
 @enum SamplingLevel begin
     SAMPLING_UNSPECIFIED
@@ -35,8 +11,11 @@ end
 
 # generics
 
-@enum GeneralOperator begin
+@enum Operator begin
     OPERATOR_UNSPECIFIED
+end
+
+@enum GeneralOperator <: Operator begin
     REGEXP
     BEGINS_WITH
     ENDS_WITH
@@ -48,16 +27,22 @@ end
     IN_LIST
 end
 
+@enum DimensionOperator <: Operator begin
+    OR
+    AND
+end
+
+@enum MetricOperator <: Operator begin
+    EQUAL = 2
+    LESS_THAN = 3
+    GREATER_THAN = 4
+    IS_MISSING = 5
+end
+
 # general dimension struct
 struct Dimension
     name::AbstractString
     histogram_buckets::Vector{Int64}
-end
-
-@enum DimensionOperator begin
-    OPERATOR_UNSPECIFIED
-    OR
-    AND
 end
 
 
@@ -84,14 +69,6 @@ end
     CURRENCY
     PERCENT
     TIME
-end
-
-@enum MetricOperator begin
-    OPERATOR_UNSPECIFIED
-    EQUAL
-    LESS_THAN
-    GREATER_THAN
-    IS_MISSING
 end
 
 struct Metric
@@ -161,4 +138,30 @@ struct CohortGroup end
 struct Cohort end
 
 @enum CohortType begin
+end
+
+
+struct ReportRequest
+    viewid::AbstractString
+    dateranges::DateRange
+    sampling_level::SamplingLevel
+    dimensions::Vector{Dimension}
+    dimension_filters::DimensionFilter
+    metrics::Vector{Metric}
+    metric_filters::MetricFilter
+    filter::AbstractString
+    order_by::OrderBy
+    segments::Segment
+    pivots::Pivot
+    cohort_group::CohortGroup
+    page_token::AbstractString
+    page_size::Integer
+    include_null_rows::Bool
+    hide_totals::Bool
+    hide_value_ranges::Bool
+end
+
+struct Request
+    report_requests::Vector{ReportRequest}
+    use_resource_quotas::Bool
 end

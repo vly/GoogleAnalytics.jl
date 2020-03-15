@@ -1,6 +1,8 @@
 using GoogleAnalytics
 using Test
 
-@testset "GoogleAnalytics.jl" begin
-    # Write your own tests here.
-end
+printstyled("Running tests:\n", color=:blue)
+
+include("authentication.jl")
+include("data_formatting.jl")
+include("api_comms.jl")
